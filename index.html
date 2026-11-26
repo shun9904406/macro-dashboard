@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宏觀週期、台股去槓桿與反身性實戰儀表板</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #131d31;
+      --card-inner: #1a2642;
+      --border: #233354;
+      --primary: #3b82f6;
+      --primary-hover: #1d4ed8;
+      --accent: #f59e0b;
+      --up: #ef4444;
+      --down: #10b981;
+      --purple: #a855f7;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", sans-serif; }
+    body { background-color: var(--bg); color: var(--text); line-height: 1.6; padding-bottom: 4rem; }
+    .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.8rem; padding: 0 1rem; }
+
+    /* 頂部跑馬燈 */
+    .tv-ticker-wrap { width: 100%; background: #0f172a; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+
+    header { text-align: center; padding: 2rem 1rem 0.4rem 1rem; }
+    header h1 { font-size: 1.95rem; color: #fff; letter-spacing: 0.8px; margin-bottom: 0.5rem; }
+    .quote-badge { display: inline-block; background: rgba(59, 130, 246, 0.15); border: 1px solid var(--primary); color: #93c5fd; padding: 0.35rem 1rem; border-radius: 999px; font-size: 0.84rem; margin-bottom: 0.8rem; }
+    .header-desc { color: var(--text-muted); font-size: 0.92rem; max-width: 840px; margin: 0 auto; }
+
+    .section-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .section-title { font-size: 1.18rem; color: var(--accent); margin-bottom: 1.2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 0.7rem; flex-wrap: wrap; gap: 0.5rem; }
+
+    /* 索羅斯：均衡狀態切換橫幅 */
+    .regime-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1.15rem 1.4rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+    .regime-near {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-color: #10b981;
+    }
+    .regime-far {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(239, 68, 68, 0.15) 100%);
+      border-color: #a855f7;
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.22);
+    }
+    .regime-pill {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .pill-near { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .pill-far { background: rgba(168, 85, 247, 0.25); color: #d8b4fe; border: 1px solid #a855f7; }
+
+    /* 總經判讀引擎主面板 */
+    .engine-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.2rem; }
+    @media (max-width: 860px) { .engine-grid { grid-template-columns: 1fr; } }
+
+    .stage-banner { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid var(--primary); border-radius: 10px; padding: 1.35rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
+    .stage-label { font-size: 0.82rem; color: #93c5fd; text-transform: uppercase; letter-spacing: 1px; }
+    .stage-name { font-size: 1.5rem; font-weight: 800; color: #fbbf24; line-height: 1.3; }
+    .stage-forecast { background: rgba(15, 23, 42, 0.85); border-left: 3px solid var(--primary); padding: 0.85rem 1rem; border-radius: 6px; font-size: 0.87rem; color: #cbd5e1; }
+
+    /* 四象限視覺化 */
+    .quadrant-box { background: var(--card-inner); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; display: flex; flex-direction: column; justify-content: space-between; }
+    .quadrant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.8rem; }
+    .q-cell { background: #0b0f19; border: 1px solid #1e293b; border-radius: 6px; padding: 0.72rem; font-size: 0.79rem; color: var(--text-muted); transition: all 0.3s; }
+    .q-cell strong { display: block; font-size: 0.86rem; color: #cbd5e1; margin-bottom: 0.2rem; }
+    .q-cell.active { border-color: var(--accent); background: rgba(245, 158, 11, 0.12); color: #f8fafc; box-shadow: 0 0 12px rgba(245, 158, 11, 0.2); }
+    .q-cell.active strong { color: #fbbf24; }
+
+    /* 四大維度分數與熱錢監控條 */
+    .meter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin-top: 1.2rem; }
+    .meter-card { background: var(--card-inner); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    .meter-head { display: flex; justify-content: space-between; font-size: 0.83rem; margin-bottom: 0.5rem; gap: 0.4rem; }
+    .bar-bg { width: 100%; height: 8px; background: #0b0f19; border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease, background 0.4s ease; }
+
+    /* 熱錢反身性專屬卡片 */
+    .hotmoney-alert {
+      margin-top: 1rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #233354;
+      border-left: 4px solid #3b82f6;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+
+    /* 台股去槓桿止跌燈號模組 */
+    .delev-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1.2rem 1.4rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      transition: all 0.3s;
+    }
+    .delev-banner.state-red { border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+    .delev-banner.state-yellow { border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+    .delev-banner.state-green { border-color: #10b981; background: rgba(16, 185, 129, 0.1); }
+
+    .soros-sub-alerts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 0.9rem;
+      margin-bottom: 1.2rem;
+    }
+    .soros-mini-box {
+      background: #0f172a;
+      border: 1px dashed #334155;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+    }
+    .soros-mini-box strong { color: #d8b4fe; }
+
+    .delev-score-box { display: flex; align-items: center; gap: 1rem; }
+    .traffic-light { font-size: 2.1rem; line-height: 1; }
+    .delev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; }
+    .delev-card {
+      background: var(--card-inner);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.7rem;
+      border-top: 3px solid #334155;
+      transition: border-color 0.3s;
+    }
+    .delev-card.light-red { border-top-color: #ef4444; }
+    .delev-card.light-yellow { border-top-color: #f59e0b; }
+    .delev-card.light-green { border-top-color: #10b981; }
+
+    .delev-select {
+      width: 100%;
+      background: #0b0f19;
+      color: #f1f5f9;
+      border: 1px solid #233354;
+      border-radius: 6px;
+      padding: 0.55rem 0.6rem;
+      font-size: 0.84rem;
+      cursor: pointer;
+    }
+    .delev-select:focus { outline: none; border-color: var(--primary); }
+
+    /* 政府與總經指標教學卡片 */
+    .ind-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(225px, 1fr)); gap: 1rem; }
+    .ind-card { background: var(--card-inner); border: 1px solid var(--border); border-radius: 8px; padding: 1.05rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.65rem; }
+    .ind-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.4rem; }
+    .ind-title { font-size: 0.93rem; font-weight: 700; color: #e2e8f0; }
+    .ind-source { font-size: 0.71rem; color: #64748b; }
+    .ind-badge { font-size: 0.73rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .badge-hot { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; }
+    .badge-warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; }
+    .badge-ok { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; }
+    .badge-cold { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid #3b82f6; }
+
+    .ind-input-wrap { display: flex; align-items: center; gap: 0.5rem; background: #0b0f19; padding: 0.42rem 0.68rem; border-radius: 6px; border: 1px solid #233354; }
+    .ind-input-wrap input { width: 100%; background: transparent; border: none; color: #fff; font-size: 1.08rem; font-weight: 700; font-family: monospace; }
+    .ind-input-wrap input:focus { outline: none; }
+    .ind-unit { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+
+    .ind-guide { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; border-top: 1px dashed #233354; padding-top: 0.55rem; }
+    .ind-guide b { color: #cbd5e1; }
+
+    /* 小散戶再平衡試算器 + 索羅斯歷時實驗室 */
+    .bottom-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1.4rem; }
+    @media (max-width: 960px) { .bottom-grid { grid-template-columns: 1fr; } }
+
+    .calc-container { background: var(--card-inner); padding: 1.35rem; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 1.1rem; }
+    .input-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.9rem; }
+    .input-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .input-group label { font-size: 0.82rem; color: #cbd5e1; font-weight: 500; }
+    .input-group input, .input-group textarea { background: #0b0f19; border: 1px solid var(--border); color: #fff; padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.98rem; font-family: inherit; }
+    .input-group input { font-family: monospace; font-size: 1.08rem; }
+    .input-group textarea { resize: vertical; min-height: 62px; font-size: 0.86rem; line-height: 1.5; }
+    .input-group input:focus, .input-group textarea:focus { outline: none; border-color: var(--primary); }
+
+    .calc-results { background: #0b0f19; border: 1px dashed var(--border); border-radius: 8px; padding: 1.1rem; display: grid; grid-template-columns: 1fr; gap: 0.9rem; }
+    .res-box h5 { color: var(--text-muted); font-size: 0.78rem; margin-bottom: 0.2rem; }
+    .res-box .res-val { font-size: 1.25rem; font-weight: bold; color: var(--accent); font-family: monospace; }
+    .res-box .res-sub { font-size: 0.79rem; color: #94a3b8; margin-top: 0.2rem; }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
+    .btn-sync { background: var(--primary); color: #fff; border: none; padding: 0.5rem 0.95rem; border-radius: 6px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-sync:hover { background: var(--primary-hover); }
+    .btn-danger { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid #ef4444; padding: 0.5rem 0.95rem; border-radius: 6px; font-size: 0.84rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .btn-danger:hover { background: #ef4444; color: #fff; }
+    .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid #334155; padding: 0.45rem 0.8rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+    .btn-ghost:hover { border-color: #64748b; color: #fff; }
+
+    /* 假說日記清單 */
+    .log-list {
+      max-height: 175px;
+      overflow-y: auto;
+      background: #0b0f19;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .log-item {
+      border-left: 3px solid var(--primary);
+      padding-left: 0.65rem;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+    }
+    .log-item.log-survival { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.08); padding: 0.45rem 0.65rem; border-radius: 0 4px 4px 0; }
+    .log-meta { font-size: 0.72rem; color: #64748b; margin-bottom: 0.15rem; font-family: monospace; }
+
+    footer { text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-top: 2rem; }
+  </style>
+  <!-- TradingView 即時報價跑馬燈 -->
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {
+    "symbols": [
+      { "proName": "TWSE:TAIEX", "title": "台灣加權指數" },
+      { "proName": "FOREXCOM:SPXUSD", "title": "S&P 500" },
+      { "proName": "FOREXCOM:NSXUSD", "title": "NASDAQ" },
+      { "proName": "CBOE:VIX", "title": "VIX 恐慌指數" },
+      { "proName": "TVC:US10Y", "title": "美債10年殖利率" },
+      { "proName": "TVC:DXY", "title": "美元指數 DXY" },
+      { "proName": "FX_IDC:USDTWD", "title": "美元/台幣" }
+    ],
+    "showSymbolLogo": true,
+    "isTransparent": true,
+    "displayMode": "adaptive",
+    "colorTheme": "dark",
+    "locale": "zh_TW"
+  }
+  </script>
+</head>
+<body>
+
+  <div class="tv-ticker-wrap">
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+    </div>
+  </div>
+
+  <header>
+    <div class="quote-badge">Dalio 經濟機器 × Marks 市場週期 × Soros 反身性煉金術</div>
+    <h1>宏觀週期、台股去槓桿與反身性實戰儀表板</h1>
+    <p class="header-desc">結合總經結構四象限、信用情緒鐘擺、索羅斯「遠離均衡／熱錢大循環／歷時實驗假說檢驗」，以及台股融資斷頭 5 燈號，專為小散戶打造的防禦與生存羅盤。</p>
+  </header>
+
+  <div class="container">
+
+    <!-- 索羅斯整合 1：市場狀態開關（接近均衡 vs 遠離均衡） -->
+    <div class="regime-bar regime-near" id="regimeBar">
+      <div style="flex: 1; min-width: 280px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
+          <span class="regime-pill pill-near" id="regimePill">⚖️ 接近均衡模式 (Near-Equilibrium)</span>
+          <span style="font-size: 0.82rem; color: var(--text-muted);" id="regimeTriggerReason">目前跨市場指標尚未觸發極端反身性閥值</span>
+        </div>
+        <div style="font-size: 0.87rem; color: #e2e8f0;" id="regimeDesc">
+          認知與現實的背離處於常態範圍。請直接依循下方「達利歐四象限」與「馬克斯溫度計」執行紀律再平衡。
+        </div>
+      </div>
+      <div style="text-align: right; min-width: 170px;">
+        <div style="font-size: 0.75rem; color: var(--text-muted);">反身性觸發條件 (任一項)</div>
+        <div style="font-size: 0.78rem; color: #cbd5e1; font-family: monospace;">VIX≥28 | 10Y≥5.0% | HY≥5.5%<br>台股維持率≤135% | 熱錢三殺</div>
+      </div>
+    </div>
+
+    <!-- 模組 1：總經週期判讀引擎 + 熱錢反身性監控 -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>🧭 總經週期即時診斷、四象限落點與熱錢反身性</span>
+        <span style="font-size: 0.8rem; color: #34d399;">基準數據：2026 年 11 月最新官方統計（可自由調整模擬）</span>
+      </div>
+
+      <div class="engine-grid">
+        <div class="stage-banner">
+          <div>
+            <div class="stage-label">當前週期判定 (Cycle Stage)</div>
+            <div class="stage-name" id="stageTitle">晚週期：通膨黏著與高利率拉鋸期</div>
+          </div>
+          <div class="stage-forecast" id="stageForecast"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
+            <div style="font-size: 0.88rem; color: #e2e8f0;">
+              綜合建議防禦持股上限：<strong id="recEquityPct" style="color: #fbbf24; font-size: 1.25rem; font-family: monospace;">50%</strong>
+            </div>
+            <button class="btn-sync" onclick="applyRecommendedPct()">一鍵套用至下方散戶試算器 ↓</button>
+          </div>
+        </div>
+
+        <div class="quadrant-box">
+          <div style="font-size: 0.9rem; font-weight: 700; color: #93c5fd;">📐 達利歐「成長 × 通膨」四象限落點</div>
+          <div class="quadrant-grid">
+            <div class="q-cell" id="q-goldilocks">
+              <strong>象限 1：金髮女孩 (成長↑ 通膨↓)</strong>
+              股票、科技成長股、公司債大漲。最佳進攻期。
+            </div>
+            <div class="q-cell" id="q-reflation">
+              <strong>象限 2：過熱/再通膨 (成長↑ 通膨↑)</strong>
+              商品、抗通膨資產、短債與現金勝出；高估值股承壓。
+            </div>
+            <div class="q-cell" id="q-deflation">
+              <strong>象限 3：通縮衰退 (成長↓ 通膨↓)</strong>
+              長天期美債、現金為王；股市大幅修正。
+            </div>
+            <div class="q-cell" id="q-stagflation">
+              <strong>象限 4：停滯性通膨 (成長↓ 通膨↑)</strong>
+              股債雙殺最險惡環境；現金、黃金與防禦股避險。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="meter-row">
+        <div class="meter-card">
+          <div class="meter-head">
+            <span style="color: #cbd5e1;">經濟成長動能 (NFP / 失業率)</span>
+            <strong id="scoreGrowthText">--</strong>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="barGrowth"></div></div>
+        </div>
+        <div class="meter-card">
+          <div class="meter-head">
+            <span style="color: #cbd5e1;">通膨與高利率壓力 (CPI / 10Y)</span>
+            <strong id="scoreInflationText">--</strong>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="barInflation"></div></div>
+        </div>
+        <div class="meter-card">
+          <div class="meter-head">
+            <span style="color: #cbd5e1;">馬克斯情緒鐘擺 (信用利差 / VIX)</span>
+            <strong id="scoreSentimentText">--</strong>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" id="barSentiment"></div></div>
+        </div>
+      </div>
+
+      <!-- 索羅斯整合 3：美元大循環與熱錢反身性監控 -->
+      <div class="hotmoney-alert" id="hotMoneyBox">
+        <div>
+          <strong style="color: #93c5fd;">🌊 索羅斯「美元大循環與熱錢反身性」監測：</strong>
+          <span id="hotMoneyText">--</span>
+        </div>
+        <span class="ind-badge badge-warn" id="hotMoneyBadge">熱錢警戒</span>
+      </div>
+    </section>
+
+    <!-- 模組 2：台股去槓桿與止跌訊號雷達（整合索羅斯抵押品壓縮與管制者干預） -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>🚦 台股去槓桿與止跌訊號雷達（籌碼清洗 × 反身性清算監控）</span>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">達 3 顆綠燈以上，才視為斷頭賣壓接近尾聲</span>
+      </div>
+
+      <div class="delev-banner state-red" id="delevBanner">
+        <div class="delev-score-box">
+          <div class="traffic-light" id="delevIcon">🔴</div>
+          <div>
+            <div style="font-size: 1.15rem; font-weight: 800; color: #fff;" id="delevVerdict">去槓桿尚未結束（嚴禁接刀）</div>
+            <div style="font-size: 0.84rem; color: #cbd5e1; margin-top: 0.2rem;" id="delevAdvice">--</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 0.8rem; color: var(--text-muted);">止跌達標綠燈數</div>
+          <div style="font-size: 1.6rem; font-weight: 800; font-family: monospace; color: #fbbf24;" id="delevCount">0 / 5</div>
+        </div>
+      </div>
+
+      <!-- 索羅斯整合 2：抵押品清算壓縮度 + 管制者干預效應警示 -->
+      <div class="soros-sub-alerts">
+        <div class="soros-mini-box" id="collateralBox">
+          <strong>⛓️ 抵押品清算壓縮度：</strong><span id="collateralText">--</span>
+        </div>
+        <div class="soros-mini-box" id="regulatorBox">
+          <strong>🏛️ 管制者干預效應：</strong><span id="regulatorText">--</span>
+        </div>
+      </div>
+
+      <div class="delev-grid">
+        <div class="delev-card" id="dcard-1">
+          <div class="ind-header">
+            <div class="ind-title">1. 大盤融資維持率</div>
+            <span class="ind-badge badge-warn" id="dbadge-1">警戒區</span>
+          </div>
+          <div class="ind-input-wrap">
+            <input type="number" id="tw-maint" value="138" step="1" oninput="updateAllEngines()">
+            <span class="ind-unit">%</span>
+          </div>
+          <div class="ind-guide"><b>判讀：</b>殺破 <b>135%</b> 引爆斷頭潮才算見血清洗（綠燈）；<b>136%～148%</b> 屬追繳警戒（黃燈）。</div>
+        </div>
+
+        <div class="delev-card" id="dcard-2">
+          <div class="ind-header">
+            <div class="ind-title">2. 融資累計減幅</div>
+            <span class="ind-badge badge-hot" id="dbadge-2">尚未洗淨</span>
+          </div>
+          <div class="ind-input-wrap">
+            <input type="number" id="tw-margin-drop" value="14" step="1" oninput="updateAllEngines()">
+            <span class="ind-unit">% (對比大盤-27%)</span>
+          </div>
+          <div class="ind-guide"><b>判讀：</b>融資減肥須 <b>≥ 25%</b>（追上大盤跌幅）才算浮額洗淨（綠燈）；低於 15% 代表散戶還在凹單（紅燈）。</div>
+        </div>
+
+        <div class="delev-card" id="dcard-3">
+          <div class="ind-header">
+            <div class="ind-title">3. 量價止跌結構</div>
+            <span class="ind-badge badge-warn" id="dbadge-3">觀察中</span>
+          </div>
+          <select class="delev-select" id="tw-vol" onchange="updateAllEngines()">
+            <option value="red">無量陰跌 / 尾盤收最低點</option>
+            <option value="yellow" selected>已見爆量長下影線，待量縮</option>
+            <option value="green">爆量後「量縮不破前低」</option>
+          </select>
+          <div class="ind-guide"><b>判讀：</b>底部需走完兩步：先爆量換手，後續 3~5 天量縮至均量一半且<b>不破低點</b>才是真止跌。</div>
+        </div>
+
+        <div class="delev-card" id="dcard-4">
+          <div class="ind-header">
+            <div class="ind-title">4. 政策底 vs 第二隻腳</div>
+            <span class="ind-badge badge-hot" id="dbadge-4">政策底階段</span>
+          </div>
+          <select class="delev-select" id="tw-leg" onchange="updateAllEngines()">
+            <option value="red" selected>剛祭出禁空令 / 放寬維持率反彈</option>
+            <option value="yellow">正在回測前低，跌停家數減少</option>
+            <option value="green">回測不破前低，第二隻腳確立</option>
+          </select>
+          <div class="ind-guide"><b>判讀：</b>禁空令多對應「政策底」，反彈後易回測打出「市場底（第二隻腳）」，不破前低才是右側買點。</div>
+        </div>
+
+        <div class="delev-card" id="dcard-5">
+          <div class="ind-header">
+            <div class="ind-title">5. 台幣匯率與外資</div>
+            <span class="ind-badge badge-hot" id="dbadge-5">外資提款中</span>
+          </div>
+          <select class="delev-select" id="tw-fx" onchange="updateAllEngines()">
+            <option value="red" selected>台幣持續急貶、外資大賣超</option>
+            <option value="yellow">台幣止貶橫盤、賣壓鈍化</option>
+            <option value="green">台幣轉升、外資空單回補</option>
+          </select>
+          <div class="ind-guide"><b>判讀：</b>匯率停止急貶並開始橫盤轉升，搭配外資期貨淨空單縮減，代表外部提款潮告一段落。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 模組 3：10 大跨市場與政府總經指標教學 + 互動模擬 -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>📚 跨市場與政府核心指標：互動評測 ＆ 判讀教學</span>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">修改任意數值，上方「均衡開關 / 總經引擎 / 熱錢監測」即時聯動</span>
+      </div>
+
+      <div class="ind-grid">
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">1. 非農就業 (NFP)</div><div class="ind-source">美國勞工統計局</div></div>
+            <span class="ind-badge badge-ok" id="badge-nfp">就業強韌</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-nfp" value="165" step="10" oninput="updateAllEngines()"><span class="ind-unit">千人 (K)</span></div>
+          <div class="ind-guide"><b>&gt;150K</b> 經濟強勁但易推升通膨；跌破 <b>50K 或轉負</b>為衰退警鐘。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">2. 美國失業率</div><div class="ind-source">美國勞工統計局</div></div>
+            <span class="ind-badge badge-ok" id="badge-unemp">低檔健康</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-unemp" value="4.1" step="0.1" oninput="updateAllEngines()"><span class="ind-unit">%</span></div>
+          <div class="ind-guide"><b>&lt;4.3%</b> 勞動市場緊俏；快速跳升逾 0.5% 或破 <b>4.8%</b> 代表裁員潮起。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">3. 美國 CPI 年增率</div><div class="ind-source">美國勞工統計局</div></div>
+            <span class="ind-badge badge-hot" id="badge-cpi">通膨黏著</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-cpi" value="3.7" step="0.1" oninput="updateAllEngines()"><span class="ind-unit">%</span></div>
+          <div class="ind-guide">聯準會目標 <b>2.0%</b>。卡在 <b>3.0% 以上</b>將鎖死降息與寬鬆空間。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">4. Fed 基準利率</div><div class="ind-source">FOMC 利率決策</div></div>
+            <span class="ind-badge badge-warn" id="badge-fed">限制性高檔</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-fed" value="3.88" step="0.25" oninput="updateAllEngines()"><span class="ind-unit">%</span></div>
+          <div class="ind-guide">觀察<b>實質利率 (Fed - CPI)</b>：正值越大代表貨幣越緊縮，高估值承壓。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">5. 美債 10Y 殖利率</div><div class="ind-source">全球資產定價之錨</div></div>
+            <span class="ind-badge badge-hot" id="badge-tnx">估值高壓</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-tnx" value="4.82" step="0.1" oninput="updateAllEngines()"><span class="ind-unit">%</span></div>
+          <div class="ind-guide">逼近或破 <b>5.0%</b> 觸發遠離均衡警戒，對高本益比成長股形成強烈殺估值。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">6. 利差 (10Y - 2Y)</div><div class="ind-source">FRED / 債市結構</div></div>
+            <span class="ind-badge badge-warn" id="badge-curve">正斜率警戒</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-curve" value="0.35" step="0.05" oninput="updateAllEngines()"><span class="ind-unit">%</span></div>
+          <div class="ind-guide">歷史衰退多發生在<b>倒掛解除、重新轉正陡峭化</b>後的 6～12 個月內。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">7. 高收益債利差</div><div class="ind-source">馬克斯信用指標</div></div>
+            <span class="ind-badge badge-hot" id="badge-hy">利差過窄/貪婪</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-hy" value="3.20" step="0.2" oninput="updateAllEngines()"><span class="ind-unit">%</span></div>
+          <div class="ind-guide"><b>&lt;3.5%</b> 市場過度樂觀（宜防禦）；<b>≥5.5%</b> 信用緊縮觸發遠離均衡。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">8. VIX 恐慌指數</div><div class="ind-source">CBOE 隱含波動率</div></div>
+            <span class="ind-badge badge-warn" id="badge-vix">過度平靜</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-vix" value="15.2" step="1" oninput="updateAllEngines()"><span class="ind-unit">點</span></div>
+          <div class="ind-guide"><b>&lt;16</b> 防備心極低（忌開槓桿）；<b>≥28</b> 進入反身性恐慌波動期。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">9. DXY 美元指數</div><div class="ind-source">索羅斯匯率反身性</div></div>
+            <span class="ind-badge badge-warn" id="badge-dxy">偏強吸金</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-dxy" value="105.8" step="0.5" oninput="updateAllEngines()"><span class="ind-unit">點</span></div>
+          <div class="ind-guide"><b>≥106</b> 且伴隨高美債利率，將引發全球投機熱錢回流美元，抽乾新興市場。</div>
+        </div>
+
+        <div class="ind-card">
+          <div class="ind-header">
+            <div><div class="ind-title">10. 美元 / 新台幣</div><div class="ind-source">外資熱錢風向球</div></div>
+            <span class="ind-badge badge-warn" id="badge-twd">貶值承壓</span>
+          </div>
+          <div class="ind-input-wrap"><input type="number" id="in-twd" value="32.55" step="0.1" oninput="updateAllEngines()"><span class="ind-unit">TWD</span></div>
+          <div class="ind-guide">突破 <b>32.5</b> 以上代表外資匯出壓力顯著，台股反彈易受壓抑。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 模組 4：小散戶實戰資金再平衡 ＋ 索羅斯「歷時實驗」假說檢驗室 -->
+    <section class="section-card">
+      <div class="section-title">
+        <span>⚖️ 小散戶實戰執行：資產再平衡 ＆ 索羅斯「歷時實驗」假說檢驗</span>
+        <span style="font-size: 0.8rem; color: #93c5fd;">單位：新台幣（萬元）‧ 支援瀏覽器本地自動存檔</span>
+      </div>
+
+      <div class="bottom-grid">
+        <!-- 左側：小散戶再平衡試算器 -->
+        <div class="calc-container">
+          <h4 style="color: #fbbf24; font-size: 1rem;">💰 部位再平衡與高水條款回撤</h4>
+          <div class="input-row">
+            <div class="input-group">
+              <label for="cashInput">手頭現金 / 高利活存 (萬)</label>
+              <input type="number" id="cashInput" value="100" step="5" oninput="calculateRebalance()">
+            </div>
+            <div class="input-group">
+              <label for="riskInput">股票 / ETF 總市值 (萬)</label>
+              <input type="number" id="riskInput" value="200" step="5" oninput="calculateRebalance()">
+            </div>
+            <div class="input-group">
+              <label for="targetInput">目標持股比例上限 (%)</label>
+              <input type="number" id="targetInput" value="50" step="5" min="5" max="95" oninput="calculateRebalance()">
+            </div>
+            <div class="input-group">
+              <label for="hwmInput">歷史最高總資產 (萬)</label>
+              <input type="number" id="hwmInput" value="310" step="5" oninput="calculateRebalance()">
+            </div>
+          </div>
+
+          <div class="calc-results">
+            <div class="res-box">
+              <h5>目前投資組合總資產 ＆ 高水回撤</h5>
+              <div class="res-val" id="totalAsset">300.0 萬元</div>
+              <div class="res-sub" id="hwmStatus">--</div>
+            </div>
+            <div class="res-box">
+              <h5>當前實際持股比重</h5>
+              <div class="res-val" id="currentRatio">66.7%</div>
+              <div class="res-sub" id="ratioDiffText">--</div>
+            </div>
+            <div class="res-box">
+              <h5>回歸目標水位應執行動作</h5>
+              <div class="res-val" id="actionAmount">--</div>
+              <div class="res-sub" id="actionDetail">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：索羅斯整合 4：歷時實驗假說檢驗與生存減半機制 -->
+        <div class="calc-container" style="border-color: #4c1d95;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+            <h4 style="color: #d8b4fe; font-size: 1rem;">🧪 索羅斯「歷時實驗」假說與生存防線</h4>
+            <span style="font-size: 0.74rem; color: #94a3b8;" id="saveStatus">已連接本地存檔</span>
+          </div>
+
+          <div class="input-group">
+            <label for="hypoText">1. 我的核心市場假說 (Hypothesis)</label>
+            <textarea id="hypoText" placeholder="例：台股融資殺破 135% 洗淨浮額後，AI 資本支出支撐權值股打出第二隻腳反彈..."></textarea>
+          </div>
+          <div class="input-group">
+            <label for="falsifyText">2. 明確證偽條件 (Falsification Trigger — 何時承認我看錯？)</label>
+            <textarea id="falsifyText" placeholder="例：若跌破前波低點且融資不減反增，或美債 10Y 站上 5.2% 導致熱錢加速外逃..."></textarea>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-sync" onclick="saveHypothesisEntry()">💾 寫入實驗日記</button>
+            <button class="btn-danger" onclick="triggerSurvivalHalving()">⚠️ 假說遭證偽：啟動生存減半</button>
+            <button class="btn-ghost" onclick="clearLogs()">清除紀錄</button>
+          </div>
+
+          <div class="log-list" id="hypoLogList">
+            <div style="font-size: 0.8rem; color: #64748b; text-align: center; padding: 1rem 0;">尚無實驗紀錄。寫下你的假說與證偽點，避免盤中情緒凹單。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <p>宏觀週期、台股去槓桿與反身性實戰儀表板 ‧ 結合 Dalio / Marks / Soros 框架 ‧ 僅供個人投資紀律研究</p>
+  </footer>
+
+  <script>
+    let currentRecommendedPct = 50;
+    const STORAGE_KEY_LOGS = 'soros_hypothesis_logs_v1';
+    const STORAGE_KEY_DRAFT = 'soros_hypothesis_draft_v1';
+
+    function setBadge(id, text, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerText = text;
+      el.className = 'ind-badge ' + type;
+    }
+
+    function updateAllEngines() {
+      const delevState = runDeleveragingEngine();
+      runMacroAndSorosEngine(delevState);
+      calculateRebalance();
+    }
+
+    function runDeleveragingEngine() {
+      let greenCount = 0;
+
+      const maint = parseFloat(document.getElementById('tw-maint').value) || 0;
+      const mDrop = parseFloat(document.getElementById('tw-margin-drop').value) || 0;
+      const volVal = document.getElementById('tw-vol').value;
+      const legVal = document.getElementById('tw-leg').value;
+      const fxVal = document.getElementById('tw-fx').value;
+
+      const c1 = document.getElementById('dcard-1');
+      if (maint > 0 && maint <= 135) {
+        greenCount++;
+        c1.className = 'delev-card light-green';
+        setBadge('dbadge-1', '斷頭出清區', 'badge-ok');
+      } else if (maint <= 148) {
+        c1.className = 'delev-card light-yellow';
+        setBadge('dbadge-1', '警戒追繳區', 'badge-warn');
+      } else {
+        c1.className = 'delev-card light-red';
+        setBadge('dbadge-1', '尚未見血清洗', 'badge-hot');
+      }
+
+      const c2 = document.getElementById('dcard-2');
+      if (mDrop >= 25) {
+        greenCount++;
+        c2.className = 'delev-card light-green';
+        setBadge('dbadge-2', '浮額已洗淨', 'badge-ok');
+      } else if (mDrop >= 15) {
+        c2.className = 'delev-card light-yellow';
+        setBadge('dbadge-2', '清洗中段', 'badge-warn');
+      } else {
+        c2.className = 'delev-card light-red';
+        setBadge('dbadge-2', '散戶凹單未洗淨', 'badge-hot');
+      }
+
+      const selectChecks = [
+        { val: volVal, card: 'dcard-3', badge: 'dbadge-3', labels: { red: '無量陰跌', yellow: '待量縮確認', green: '量縮不破底' } },
+        { val: legVal, card: 'dcard-4', badge: 'dbadge-4', labels: { red: '政策底階段', yellow: '回測測試中', green: '第二隻腳確立' } },
+        { val: fxVal,  card: 'dcard-5', badge: 'dbadge-5', labels: { red: '外資提款中', yellow: '賣壓鈍化', green: '資金回流' } }
+      ];
+
+      selectChecks.forEach(item => {
+        const card = document.getElementById(item.card);
+        if (item.val === 'green') {
+          greenCount++;
+          card.className = 'delev-card light-green';
+          setBadge(item.badge, item.labels.green, 'badge-ok');
+        } else if (item.val === 'yellow') {
+          card.className = 'delev-card light-yellow';
+          setBadge(item.badge, item.labels.yellow, 'badge-warn');
+        } else {
+          card.className = 'delev-card light-red';
+          setBadge(item.badge, item.labels.red, 'badge-hot');
+        }
+      });
+
+      const colText = document.getElementById('collateralText');
+      if (maint <= 135 && mDrop >= 25) {
+        colText.innerText = '強制清算能量已大規模釋放，抵押品與信貸的負向反身性螺旋接近尾聲。';
+      } else if (maint <= 142 && mDrop < 20) {
+        colText.innerText = '⚠️ 危險！維持率逼近追繳線但融資減幅不足，代表散戶仍在硬撐，隨時可能觸發「時間壓縮式」連鎖斷頭急殺！';
+      } else {
+        colText.innerText = '信貸抵押品正處於消化調整期，需持續追蹤融資餘額是否同步減肥。';
+      }
+
+      const regText = document.getElementById('regulatorText');
+      if (legVal === 'red') {
+        regText.innerText = '⚠️ 處於「管制者干預緩衝期」（禁空令/放寬維持率）。人為托底會讓市場逼近深淵又退縮，拉長出清時間，切忌把第一波反彈當成真底！';
+      } else if (legVal === 'yellow') {
+        regText.innerText = '干預效應遞減，市場正回歸真實供需測試前低，密切觀察跌停家數是否收斂。';
+      } else {
+        regText.innerText = '市場已通過無外力干預的第二隻腳檢驗，籌碼結構趨於自然穩定。';
+      }
+
+      const banner = document.getElementById('delevBanner');
+      const icon = document.getElementById('delevIcon');
+      const verdict = document.getElementById('delevVerdict');
+      const advice = document.getElementById('delevAdvice');
+      const countEl = document.getElementById('delevCount');
+      countEl.innerText = `${greenCount} / 5`;
+
+      if (greenCount >= 3) {
+        banner.className = 'delev-banner state-green';
+        icon.innerText = '🟢';
+        verdict.innerText = '去槓桿接近尾聲（可啟動分批佈局）';
+        advice.innerText = `已有 ${greenCount} 項止跌訊號轉綠！負向反身性清算大幅消化，可將現金分 3~4 批逢低承接市值型 ETF 或績優龍頭（仍嚴禁融資）。`;
+        countEl.style.color = '#34d399';
+      } else if (greenCount === 2) {
+        banner.className = 'delev-banner state-yellow';
+        icon.innerText = '🟡';
+        verdict.innerText = '進入洗盤中後段（高度警戒、準備子彈）';
+        advice.innerText = `目前 2 項達標，斷頭賣壓已消化一部分，但仍缺最後的量縮或第二隻腳確認。先挑好口袋名單，靜待第 3 顆綠燈亮起。`;
+        countEl.style.color = '#fbbf24';
+      } else {
+        banner.className = 'delev-banner state-red';
+        icon.innerText = '🔴';
+        verdict.innerText = '去槓桿尚未結束（嚴禁接刀）';
+        advice.innerText = `目前僅 ${greenCount} 項達標。融資浮額或外資賣壓尚未清洗乾淨，請抱緊現金、絕不使用融資或正 2 抄底。`;
+        countEl.style.color = '#f87171';
+      }
+
+      return { maint, mDrop, greenCount };
+    }
+
+    function runMacroAndSorosEngine(delevState) {
+      const nfp = parseFloat(document.getElementById('in-nfp').value) || 0;
+      const unemp = parseFloat(document.getElementById('in-unemp').value) || 0;
+      const cpi = parseFloat(document.getElementById('in-cpi').value) || 0;
+      const fed = parseFloat(document.getElementById('in-fed').value) || 0;
+      const tnx = parseFloat(document.getElementById('in-tnx').value) || 0;
+      const curve = parseFloat(document.getElementById('in-curve').value) || 0;
+      const hy = parseFloat(document.getElementById('in-hy').value) || 0;
+      const vix = parseFloat(document.getElementById('in-vix').value) || 0;
+      const dxy = parseFloat(document.getElementById('in-dxy').value) || 0;
+      const twd = parseFloat(document.getElementById('in-twd').value) || 0;
+
+      let growthScore = 50;
+      if (nfp >= 150) { growthScore += 25; setBadge('badge-nfp', '就業強韌', 'badge-ok'); }
+      else if (nfp >= 60) { growthScore += 10; setBadge('badge-nfp', '溫和擴張', 'badge-ok'); }
+      else if (nfp >= 0) { growthScore -= 15; setBadge('badge-nfp', '動能轉弱', 'badge-warn'); }
+      else { growthScore -= 35; setBadge('badge-nfp', '就業萎縮', 'badge-hot'); }
+
+      if (unemp <= 4.2) { growthScore += 20; setBadge('badge-unemp', '低檔健康', 'badge-ok'); }
+      else if (unemp <= 4.7) { setBadge('badge-unemp', '緩步攀升', 'badge-warn'); }
+      else { growthScore -= 25; setBadge('badge-unemp', '衰退警戒', 'badge-hot'); }
+      growthScore = Math.max(5, Math.min(98, growthScore));
+
+      let infScore = 50;
+      if (cpi >= 3.2) { infScore += 25; setBadge('badge-cpi', '通膨黏著', 'badge-hot'); }
+      else if (cpi >= 2.5) { infScore += 10; setBadge('badge-cpi', '略高目標', 'badge-warn'); }
+      else if (cpi >= 1.5) { infScore -= 20; setBadge('badge-cpi', '溫和受控', 'badge-ok'); }
+      else { infScore -= 35; setBadge('badge-cpi', '通縮風險', 'badge-cold'); }
+
+      if (tnx >= 5.0) { infScore += 25; setBadge('badge-tnx', '極端高壓', 'badge-hot'); }
+      else if (tnx >= 4.5) { infScore += 18; setBadge('badge-tnx', '估值高壓', 'badge-hot'); }
+      else if (tnx >= 3.8) { infScore += 5; setBadge('badge-tnx', '中性偏高', 'badge-warn'); }
+      else { infScore -= 15; setBadge('badge-tnx', '寬鬆友善', 'badge-ok'); }
+
+      setBadge('badge-fed', fed - cpi > 1.0 ? '實質緊縮' : fed > 3.5 ? '限制性高檔' : '寬鬆刺激', fed > 3.5 ? 'badge-warn' : 'badge-ok');
+      setBadge('badge-curve', curve < 0 ? '倒掛緊縮' : curve <= 0.6 ? '正斜率警戒' : '陡峭擴張', curve < 0 ? 'badge-hot' : curve <= 0.6 ? 'badge-warn' : 'badge-ok');
+      infScore = Math.max(5, Math.min(98, infScore));
+
+      let sentScore = 50;
+      if (hy <= 3.5) { sentScore += 25; setBadge('badge-hy', '利差過窄/貪婪', 'badge-hot'); }
+      else if (hy <= 4.8) { setBadge('badge-hy', '信用正常', 'badge-ok'); }
+      else if (hy < 5.5) { sentScore -= 20; setBadge('badge-hy', '信用趨緊', 'badge-warn'); }
+      else { sentScore -= 35; setBadge('badge-hy', '信用恐慌', 'badge-cold'); }
+
+      if (vix <= 16) { sentScore += 20; setBadge('badge-vix', '過度平靜', 'badge-warn'); }
+      else if (vix <= 24) { setBadge('badge-vix', '波動適中', 'badge-ok'); }
+      else if (vix < 28) { sentScore -= 15; setBadge('badge-vix', '波動放大', 'badge-warn'); }
+      else { sentScore -= 35; setBadge('badge-vix', '極端恐慌', 'badge-cold'); }
+      sentScore = Math.max(5, Math.min(98, sentScore));
+
+      setBadge('badge-dxy', dxy >= 106 ? '強勢吸金' : dxy >= 102 ? '偏強整理' : '美元轉弱', dxy >= 106 ? 'badge-hot' : dxy >= 102 ? 'badge-warn' : 'badge-ok');
+      setBadge('badge-twd', twd >= 32.5 ? '貶值提款' : twd >= 31.8 ? '中性震盪' : '台幣轉升', twd >= 32.5 ? 'badge-hot' : twd >= 31.8 ? 'badge-warn' : 'badge-ok');
+
+      const hotMoneyDrain = (tnx >= 4.5 && dxy >= 105.5 && twd >= 32.5);
+      const hotMoneyBox = document.getElementById('hotMoneyBox');
+      const hotMoneyText = document.getElementById('hotMoneyText');
+      if (hotMoneyDrain) {
+        hotMoneyBox.style.borderLeftColor = '#ef4444';
+        setBadge('hotMoneyBadge', '熱錢抽離共振', 'badge-hot');
+        hotMoneyText.innerText = `美債 10Y (${tnx}%) ＋ 強勢美元 (DXY ${dxy}) ＋ 台幣貶破 ${twd} 形成三殺共振！投機熱錢正加速回流美元，即使台股基本面佳也須壓低持股上限（自動扣除 5% 防禦緩衝）。`;
+      } else if (dxy < 102 && twd < 31.8) {
+        hotMoneyBox.style.borderLeftColor = '#10b981';
+        setBadge('hotMoneyBadge', '熱錢回流新興市場', 'badge-ok');
+        hotMoneyText.innerText = `美元走弱 (DXY ${dxy}) 搭配台幣升值 (${twd})，國際投機熱錢正向亞股與台股流入，形成正向資金反身性助推。`;
+      } else {
+        hotMoneyBox.style.borderLeftColor = '#f59e0b';
+        setBadge('hotMoneyBadge', '熱錢拉鋸整理', 'badge-warn');
+        hotMoneyText.innerText = `匯率與利差處於拉鋸狀態（DXY ${dxy} / USD-TWD ${twd}），未出現失控的單邊熱錢逃逸，留意美元是否進一步轉強。`;
+      }
+
+      const farReasons = [];
+      if (vix >= 28) farReasons.push(`VIX 飆破 ${vix}`);
+      if (tnx >= 5.0) farReasons.push(`10Y 美債達 ${tnx}%`);
+      if (hy >= 5.5) farReasons.push(`高收債利差擴大至 ${hy}%`);
+      if (delevState.maint > 0 && delevState.maint <= 135) farReasons.push(`台股維持率殺破 ${delevState.maint}%`);
+      if (hotMoneyDrain && tnx >= 4.8) farReasons.push('美債/美元/台幣熱錢三殺共振');
+
+      const regimeBar = document.getElementById('regimeBar');
+      const regimePill = document.getElementById('regimePill');
+      const regimeReason = document.getElementById('regimeTriggerReason');
+      const regimeDesc = document.getElementById('regimeDesc');
+
+      if (farReasons.length > 0) {
+        regimeBar.className = 'regime-bar regime-far';
+        regimePill.className = 'regime-pill pill-far';
+        regimePill.innerText = '⚡ 遠離均衡模式 (Far-From-Equilibrium：反身性主導)';
+        regimeReason.innerText = `觸發警報：${farReasons.join(' ‧ ')}`;
+        regimeDesc.innerHTML = `<strong>傳統本益比估值暫時失效！</strong>價格波動正反過來破壞基本面與抵押品價值。此時嚴禁左側硬拗或開槓桿，一切以<strong>「生存優先」</strong>與下方台股止跌綠燈為準。`;
+      } else {
+        regimeBar.className = 'regime-bar regime-near';
+        regimePill.className = 'regime-pill pill-near';
+        regimePill.innerText = '⚖️ 接近均衡模式 (Near-Equilibrium：常態週期)';
+        regimeReason.innerText = '跨市場指標處於常態區間，尚未觸發極端反身性螺旋';
+        regimeDesc.innerText = '認知與現實的背離處於可控範圍。請依循下方「達利歐四象限」與「馬克斯溫度計」執行紀律再平衡。';
+      }
+
+      document.getElementById('barGrowth').style.width = growthScore + '%';
+      document.getElementById('scoreGrowthText').innerText = (growthScore >= 60 ? '強韌' : growthScore >= 40 ? '放緩' : '衰退') + ` (${growthScore}/100)`;
+      document.getElementById('barGrowth').style.background = growthScore >= 60 ? '#10b981' : growthScore >= 40 ? '#f59e0b' : '#ef4444';
+
+      document.getElementById('barInflation').style.width = infScore + '%';
+      document.getElementById('scoreInflationText').innerText = (infScore >= 65 ? '高壓' : infScore >= 45 ? '溫和偏高' : '受控') + ` (${infScore}/100)`;
+      document.getElementById('barInflation').style.background = infScore >= 65 ? '#ef4444' : infScore >= 45 ? '#f59e0b' : '#10b981';
+
+      document.getElementById('barSentiment').style.width = sentScore + '%';
+      document.getElementById('scoreSentimentText').innerText = (sentScore >= 65 ? '偏貪婪/無防備' : sentScore >= 40 ? '中性平衡' : '恐慌/撿便宜區') + ` (${sentScore}/100)`;
+      document.getElementById('barSentiment').style.background = sentScore >= 65 ? '#f59e0b' : sentScore >= 40 ? '#3b82f6' : '#10b981';
+
+      ['q-goldilocks', 'q-reflation', 'q-deflation', 'q-stagflation'].forEach(id => document.getElementById(id).classList.remove('active'));
+      const stageTitle = document.getElementById('stageTitle');
+      const stageForecast = document.getElementById('stageForecast');
+
+      let basePct = 50;
+      if (growthScore >= 55 && infScore < 60) {
+        document.getElementById('q-goldilocks').classList.add('active');
+        stageTitle.innerText = '擴張期：金髮女孩經濟（成長穩健、通膨溫和）';
+        basePct = sentScore >= 75 ? 60 : 70;
+        stageForecast.innerHTML = `<strong>未來 3~6 個月預估：</strong>經濟健康且利率壓力低，多頭延續機率高。聚焦主流成長股與市值型 ETF，僅需留意 VIX 過低時不開槓桿。`;
+      } else if (growthScore >= 55 && infScore >= 60) {
+        document.getElementById('q-reflation').classList.add('active');
+        stageTitle.innerText = '晚週期：通膨黏著與高利率拉鋸期';
+        basePct = sentScore >= 70 ? 50 : 55;
+        stageForecast.innerHTML = `<strong>未來 3~6 個月預估：</strong>就業撐住底盤，但通膨黏著迫使長端美債維持高檔，降息空間受限。股市易呈高檔震盪與殺估值格局，宜保留高息現金。`;
+      } else if (growthScore < 55 && infScore >= 60) {
+        document.getElementById('q-stagflation').classList.add('active');
+        stageTitle.innerText = '高風險警報：停滯性通膨風險';
+        basePct = 35;
+        stageForecast.innerHTML = `<strong>未來 3~6 個月預估：</strong>經濟轉弱但央行因通膨無法救市，股債雙殺風險高。強烈建議大幅壓低風險資產，保留大量現金避險。`;
+      } else {
+        document.getElementById('q-deflation').classList.add('active');
+        stageTitle.innerText = sentScore <= 35 ? '衰退築底期：恐慌釋放與救市前夕' : '衰退初期：成長降溫與獲利下修';
+        basePct = sentScore <= 35 ? 60 : 40;
+        stageForecast.innerHTML = sentScore <= 35
+          ? `<strong>未來 3~6 個月預估：</strong>經濟轉弱且市場極度恐慌，央行具備大幅降息空間，可待台股去槓桿雷達轉綠後分批逢低佈局。`
+          : `<strong>未來 3~6 個月預估：</strong>經濟動能轉弱但情緒尚未完全反映，先降低持股等待信用利差擴大後的真正便宜買點。`;
+      }
+
+      if (hotMoneyDrain) {
+        basePct = Math.max(25, basePct - 5);
+      }
+      currentRecommendedPct = basePct;
+      document.getElementById('recEquityPct').innerText = currentRecommendedPct + '%';
+    }
+
+    function applyRecommendedPct() {
+      document.getElementById('targetInput').value = currentRecommendedPct;
+      calculateRebalance();
+    }
+
+    function calculateRebalance() {
+      const cash = parseFloat(document.getElementById('cashInput').value) || 0;
+      const risk = parseFloat(document.getElementById('riskInput').value) || 0;
+      const targetPct = parseFloat(document.getElementById('targetInput').value) || 50;
+      const hwm = parseFloat(document.getElementById('hwmInput').value) || 0;
+
+      const total = cash + risk;
+      const currentRatio = total > 0 ? (risk / total) * 100 : 0;
+      const diff = risk - (total * (targetPct / 100));
+
+      document.getElementById('totalAsset').innerText = total.toFixed(1) + ' 萬元';
+      const hwmStatusElem = document.getElementById('hwmStatus');
+      if (hwm > 0) {
+        if (total >= hwm) {
+          hwmStatusElem.innerText = `🎉 總資產創歷史新高（建議更新高水線為 ${total.toFixed(1)} 萬）`;
+          hwmStatusElem.style.color = '#34d399';
+        } else {
+          const dd = ((total - hwm) / hwm) * 100;
+          hwmStatusElem.innerText = dd <= -5
+            ? `⚠️ 距高點 (${hwm}萬) 回撤 ${dd.toFixed(1)}%，已觸發 5% 高水警戒！`
+            : `距高點 (${hwm}萬) 回撤 ${dd.toFixed(1)}%（5% 安全容許區內）`;
+          hwmStatusElem.style.color = dd <= -5 ? '#ef4444' : '#94a3b8';
+        }
+      }
+
+      const ratioElem = document.getElementById('currentRatio');
+      const ratioDiffElem = document.getElementById('ratioDiffText');
+      ratioElem.innerText = currentRatio.toFixed(1) + '%';
+      const diffPct = currentRatio - targetPct;
+
+      if (diffPct > 0.1) {
+        ratioElem.style.color = '#ef4444';
+        ratioDiffElem.innerText = `超出目標上限 ${diffPct.toFixed(1)}%`;
+        ratioDiffElem.style.color = '#ef4444';
+      } else if (diffPct < -5) {
+        ratioElem.style.color = '#60a5fa';
+        ratioDiffElem.innerText = `低於目標上限 ${Math.abs(diffPct).toFixed(1)}%（現金充裕）`;
+        ratioDiffElem.style.color = '#60a5fa';
+      } else {
+        ratioElem.style.color = '#34d399';
+        ratioDiffElem.innerText = `部位符合目前週期紀律`;
+        ratioDiffElem.style.color = '#34d399';
+      }
+
+      const actionElem = document.getElementById('actionAmount');
+      const actionDetailElem = document.getElementById('actionDetail');
+      if (diff > 0.1) {
+        const pctOfHoldings = risk > 0 ? (diff / risk) * 100 : 0;
+        actionElem.innerText = `分批賣出 ${diff.toFixed(1)} 萬元`;
+        actionElem.style.color = '#10b981';
+        actionDetailElem.innerText = `約佔現有持股 ${pctOfHoldings.toFixed(1)}%，建議分 2~3 次調節換回現金`;
+      } else if (diff < -0.1) {
+        actionElem.innerText = `可伺機布局 ${Math.abs(diff).toFixed(1)} 萬元`;
+        actionElem.style.color = '#60a5fa';
+        actionDetailElem.innerText = `待上方「台股去槓桿雷達」亮起 3 顆綠燈後，再分 3 批承接`;
+      } else {
+        actionElem.innerText = '部位平衡，無須動作';
+        actionElem.style.color = '#3b82f6';
+        actionDetailElem.innerText = '目前股現比與目標完全吻合';
+      }
+    }
+
+    function loadHypothesisData() {
+      try {
+        const draft = JSON.parse(localStorage.getItem(STORAGE_KEY_DRAFT) || '{}');
+        if (draft.hypo) document.getElementById('hypoText').value = draft.hypo;
+        if (draft.falsify) document.getElementById('falsifyText').value = draft.falsify;
+      } catch (e) {}
+      renderLogs();
+    }
+
+    function saveDraft() {
+      try {
+        localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify({
+          hypo: document.getElementById('hypoText').value,
+          falsify: document.getElementById('falsifyText').value
+        }));
+      } catch (e) {}
+    }
+
+    function getLogs() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+      } catch (e) { return []; }
+    }
+
+    function renderLogs() {
+      const logs = getLogs();
+      const container = document.getElementById('hypoLogList');
+      if (logs.length === 0) {
+        container.innerHTML = '<div style="font-size: 0.8rem; color: #64748b; text-align: center; padding: 1rem 0;">尚無實驗紀錄。寫下你的假說與證偽點，避免盤中情緒凹單。</div>';
+        return;
+      }
+      container.innerHTML = logs.map(entry => `
+        <div class="log-item ${entry.isSurvival ? 'log-survival' : ''}">
+          <div class="log-meta">${entry.time} ‧ 當時持股上限: ${entry.targetPct}%</div>
+          <div><strong>${entry.isSurvival ? '⚠️ 生存減半觸發：' : '📌 假說：'}</strong>${entry.hypo}</div>
+          ${entry.falsify ? `<div style="color:#94a3b8; margin-top:2px;"><b>證偽條件：</b>${entry.falsify}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function saveHypothesisEntry() {
+      const hypo = document.getElementById('hypoText').value.trim();
+      const falsify = document.getElementById('falsifyText').value.trim();
+      if (!hypo) {
+        alert('請先輸入你的「核心市場假說」再儲存！');
+        return;
+      }
+      const logs = getLogs();
+      const now = new Date().toLocaleString('zh-TW', { hour12: false });
+      logs.unshift({
+        time: now,
+        targetPct: document.getElementById('targetInput').value,
+        hypo,
+        falsify,
+        isSurvival: false
+      });
+      localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs.slice(0, 20)));
+      saveDraft();
+      renderLogs();
+      document.getElementById('saveStatus').innerText = `已存檔 (${new Date().toLocaleTimeString('zh-TW')})`;
+    }
+
+    function triggerSurvivalHalving() {
+      const targetEl = document.getElementById('targetInput');
+      const oldPct = parseFloat(targetEl.value) || 50;
+      const newPct = Math.max(5, Math.round(oldPct / 2));
+      targetEl.value = newPct;
+      calculateRebalance();
+
+      const hypo = document.getElementById('hypoText').value.trim() || '原假說遭市場走勢打臉，依索羅斯生存原則先行砍半敞口。';
+      const falsify = document.getElementById('falsifyText').value.trim();
+      const logs = getLogs();
+      logs.unshift({
+        time: new Date().toLocaleString('zh-TW', { hour12: false }),
+        targetPct: `${oldPct}% ➔ ${newPct}%`,
+        hypo: `承認誤判，目標持股上限強制減半 (${oldPct}% ➔ ${newPct}%)。原假說：${hypo}`,
+        falsify,
+        isSurvival: true
+      });
+      localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs.slice(0, 20)));
+      renderLogs();
+      document.getElementById('saveStatus').innerText = `⚠️ 已執行生存減半 (${oldPct}% ➔ ${newPct}%)`;
+    }
+
+    function clearLogs() {
+      if (confirm('確定要清除所有歷時實驗假說紀錄嗎？')) {
+        localStorage.removeItem(STORAGE_KEY_LOGS);
+        renderLogs();
+      }
+    }
+
+    document.getElementById('hypoText').addEventListener('input', saveDraft);
+    document.getElementById('falsifyText').addEventListener('input', saveDraft);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateAllEngines();
+      loadHypothesisData();
+    });
+  </script>
+</body>
+</html>
